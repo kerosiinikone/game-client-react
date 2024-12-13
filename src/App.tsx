@@ -1,35 +1,73 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { useCallback, useEffect, useState } from "react";
+import useWebSocket from "react-use-websocket";
+import { WebSocketMessage } from "react-use-websocket/dist/lib/types";
+
+interface Message {
+  Typ: number;
+  Data?: string;
+  PlayerId?: number;
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  const [socketUrl, _] = useState<string>("ws://localhost:3000");
+  const [isCurrentTurn, setIsCurrentTurn] = useState<boolean>(false);
+  const [playerId, setPlayerId] = useState<number>(0);
+  const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
+
+  const { lastMessage, sendMessage } = useWebSocket(socketUrl);
+
+  useEffect(() => {
+    if (lastMessage !== null) {
+      setMessageHistory((prev) => prev.concat(lastMessage));
+      const data: Message = JSON.parse(lastMessage.data);
+      switch (data.Typ) {
+        case 1: // Handshake
+          if (playerId === 0) {
+            setPlayerId(data.PlayerId!);
+          }
+          break;
+        case 5: // Player1Turn
+          if (playerId === 1) {
+            setIsCurrentTurn(true);
+          } else {
+            setIsCurrentTurn(false);
+          }
+          break;
+        case 6: // Player2Turn
+          if (playerId === 2) {
+            setIsCurrentTurn(true);
+          } else {
+            setIsCurrentTurn(false);
+          }
+          break;
+      }
+    }
+  }, [lastMessage]);
+
+  const handleClickSendMessage = useCallback(
+    (msg: WebSocketMessage) => sendMessage(msg),
+    []
+  );
 
   return (
     <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.tsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
+      <h1>Player ID: {playerId}</h1>
+      <h2>Current turn: {isCurrentTurn ? "Yes" : "No"}</h2>
+      <button
+        onClick={() => {
+          if (isCurrentTurn) {
+            const msg: Message = {
+              Typ: playerId === 1 ? 7 : 8,
+            };
+            handleClickSendMessage(JSON.stringify(msg));
+            setIsCurrentTurn(false);
+          }
+        }}
+      >
+        Pass turn
+      </button>
     </>
-  )
+  );
 }
 
-export default App
+export default App;
