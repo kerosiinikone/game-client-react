@@ -1,6 +1,14 @@
-import { useCallback, useEffect, useState } from "react";
+import {
+  Decal,
+  OrbitControls,
+  PerspectiveCamera,
+  useTexture,
+} from "@react-three/drei";
+import { Canvas } from "@react-three/fiber";
+import { useCallback, useEffect, useRef, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { WebSocketMessage } from "react-use-websocket/dist/lib/types";
+import { Mesh, Vector3 } from "three";
 
 interface Message {
   Typ: number;
@@ -15,15 +23,73 @@ interface Card {
   Value: string;
 }
 
+const SOCKET_URL = "ws://localhost:3000";
+
+function TopCard(
+  {
+    color,
+  }: {
+    color?: "blue" | "red";
+  } = {
+    color: "red",
+  }
+) {
+  const deckRef = useRef<Mesh>(null);
+  const cardTexture =
+    color === "red" ? "/assets/redcard.png" : "/assets/bluecard.png";
+  const texture = useTexture(cardTexture);
+
+  return (
+    <mesh ref={deckRef} position={[0, -2, -3]}>
+      <meshBasicMaterial map={texture} polygonOffset polygonOffsetFactor={-1} />
+      <boxGeometry args={[2, 0, 3]} />
+    </mesh>
+  );
+}
+
+function Deck(
+  {
+    pos,
+    rotation,
+    color,
+  }: {
+    pos?: [number, number, number];
+    rotation?: [number, number, number];
+    color?: "blue" | "red";
+  } = {
+    pos: [0, 0, 0],
+    rotation: [0, 0, 0],
+    color: "red",
+  }
+) {
+  return (
+    <group position={pos} rotation={rotation}>
+      <TopCard color={color} />
+      <mesh position={[0, -2.25, -3]}>
+        <meshBasicMaterial color="white" />
+        <boxGeometry args={[2, 0.5, 3]} />
+      </mesh>
+    </group>
+  );
+}
+
 function App() {
-  const [socketUrl, _] = useState<string>("ws://localhost:3000");
   const [isCurrentTurn, setIsCurrentTurn] = useState<boolean>(false);
   const [playerId, setPlayerId] = useState<number>(0);
+  const [player2Id, setPlayer2Id] = useState<number>(0);
   const [cards, setCards] = useState<Card[]>([]);
   const [scoreCards, setScoreCards] = useState<Card[]>([]);
   const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
 
-  const { lastMessage, sendMessage } = useWebSocket(socketUrl);
+  const { lastMessage, sendMessage: ____ } = useWebSocket(SOCKET_URL);
+
+  const x = Math.min(4 * (window.innerWidth / 1000), 4);
+  const cameraPosition = new Vector3(x, 5, 2);
+
+  const handleDeckClick = useCallback(() => {
+    if (isCurrentTurn && cards.length) {
+    }
+  }, [cards, playerId]);
 
   useEffect(() => {
     if (lastMessage !== null) {
@@ -31,16 +97,20 @@ function App() {
       const data: Message = JSON.parse(lastMessage.data);
       switch (data.Typ) {
         case 1: // Handshake
-          if (playerId === 0) {
-            setPlayerId(data.PlayerId!);
+          setPlayerId(data.PlayerId!);
+          if (data.PlayerId === 2) {
+            setPlayer2Id(1);
           }
+          break;
+        case 2: // Another player connected
+          setPlayer2Id(data.PlayerId!);
           break;
         case 5: // Player1Turn + winning condition
           if (data.ScoreCards?.length) {
             setScoreCards([...scoreCards, ...data.ScoreCards]);
           }
           if (playerId === 1) {
-            // Receive a card
+            // Receive a card from the server
             setCards([...cards, data.Card!]);
             setIsCurrentTurn(true);
           } else {
@@ -60,45 +130,21 @@ function App() {
     }
   }, [lastMessage]);
 
-  const handleClickSendMessage = useCallback(
-    (msg: WebSocketMessage) => sendMessage(msg),
-    []
-  );
+  // const handleClickSendMessage = useCallback(
+  //   (msg: WebSocketMessage) => sendMessage(msg),
+  //   []
+  // );
 
   return (
-    <>
-      <h1>Player ID: {playerId}</h1>
-      <h2>Current turn: {isCurrentTurn ? "Yes" : "No"}</h2>
-      <h2>Won Cards:</h2>
-      <ul>
-        {scoreCards.map((card, index) => (
-          <li key={index}>
-            {card.Value} of {card.Suit}
-          </li>
-        ))}
-      </ul>
-      <h2>Drawn cards:</h2>
-      <ul>
-        {cards.map((card, index) => (
-          <li key={index}>
-            {card.Value} of {card.Suit}
-          </li>
-        ))}
-      </ul>
-      <button
-        onClick={() => {
-          if (isCurrentTurn) {
-            const msg: Message = {
-              Typ: playerId === 1 ? 7 : 8,
-            };
-            handleClickSendMessage(JSON.stringify(msg));
-            setIsCurrentTurn(false);
-          }
-        }}
+    <div id="canvas-container">
+      <Canvas
+        onClick={handleDeckClick}
+        camera={{ position: cameraPosition, rotation: [-0.8, 0, 0] }}
       >
-        Pass turn
-      </button>
-    </>
+        {player2Id != 0 && <Deck pos={[0, 0, -4]} color="blue" />}
+        <Deck color="red" />
+      </Canvas>
+    </div>
   );
 }
 
