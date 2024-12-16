@@ -101,6 +101,7 @@ function Deck(
 }
 
 function App() {
+  const [socket, setSocket] = useState<string>(SOCKET_URL); // Reset the socket when game is over
   const [isCurrentTurn, setIsCurrentTurn] = useState<boolean>(false);
   const [playerId, setPlayerId] = useState<number>(0);
   const [player2Id, setPlayer2Id] = useState<number>(0);
@@ -111,7 +112,11 @@ function App() {
   const [enemyScoreCards, setScoreEnemyCards] = useState<ScoreCardTuple[]>([]);
   const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
 
-  const { lastMessage, sendMessage } = useWebSocket(SOCKET_URL);
+  const { lastMessage, sendMessage, getWebSocket } = useWebSocket(socket, {
+    shouldReconnect: () => true,
+    reconnectInterval: 1000,
+    reconnectAttempts: 1,
+  });
 
   const x = Math.min(4 * (window.innerWidth / 1000), 4);
   const cameraPosition = new Vector3(x, 5, 2);
@@ -160,40 +165,40 @@ function App() {
   };
 
   useEffect(() => {
-    if (playerId != 0 && won == playerId) {
-      const rotateY1 = Math.random() - 0.5;
-      const rotateY2 = Math.random() - 0.5;
-
-      const ownCard = ownCards[ownCards.length - 1];
-      const enemyCard = enemyCards[enemyCards.length - 1];
-
-      setScoreOwnCards([
-        ...ownScoreCards,
-        [ownCard, rotateY1],
-        [enemyCard, rotateY2],
-      ]);
-      setOwnCards([]);
-      setEnemyCards([]);
-      setWon(0);
-    } else if (player2Id != 0 && won == player2Id) {
-      const rotateY1 = Math.random() - 0.5;
-      const rotateY2 = Math.random() - 0.5;
-
-      const ownCard = ownCards[ownCards.length - 1];
-      const enemyCard = enemyCards[enemyCards.length - 1];
-
-      setScoreEnemyCards([
-        ...ownScoreCards,
-        [ownCard, rotateY1],
-        [enemyCard, rotateY2],
-      ]);
-      setOwnCards([]);
-      setEnemyCards([]);
-      setWon(0);
-    }
     if (lastMessage !== null) {
       setMessageHistory((prev) => prev.concat(lastMessage));
       const data: Message = JSON.parse(lastMessage.data);
+      if (playerId != 0 && won == playerId && data.Typ !== 9) {
+        const rotateY1 = Math.random() - 0.5;
+        const rotateY2 = Math.random() - 0.5;
+
+        const ownCard = ownCards[ownCards.length - 1];
+        const enemyCard = enemyCards[enemyCards.length - 1];
+
+        setScoreOwnCards([
+          ...ownScoreCards,
+          [ownCard, rotateY1],
+          [enemyCard, rotateY2],
+        ]);
+        setOwnCards([]);
+        setEnemyCards([]);
+        setWon(0);
+      } else if (player2Id != 0 && won == player2Id && data.Typ !== 9) {
+        const rotateY1 = Math.random() - 0.5;
+        const rotateY2 = Math.random() - 0.5;
+
+        const ownCard = ownCards[ownCards.length - 1];
+        const enemyCard = enemyCards[enemyCards.length - 1];
+
+        setScoreEnemyCards([
+          ...ownScoreCards,
+          [ownCard, rotateY1],
+          [enemyCard, rotateY2],
+        ]);
+        setOwnCards([]);
+        setEnemyCards([]);
+        setWon(0);
+      }
       switch (data.Typ) {
         case 1: // Handshake
           setPlayerId(data.PlayerId!);
@@ -233,6 +238,17 @@ function App() {
           } else if (playerId === 2 && data.Card) {
             setEnemyCards([...enemyCards, data.Card!]);
           }
+          break;
+        case 9: // Game over
+          setOwnCards([]);
+          setEnemyCards([]);
+          setScoreEnemyCards([]);
+          setScoreOwnCards([]);
+          setIsCurrentTurn(false);
+          setWon(0);
+
+          // alert("Game over");
+
           break;
       }
     }
