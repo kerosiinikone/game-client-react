@@ -11,6 +11,7 @@ interface Message {
   PlayerId?: number;
   Card?: Card;
   Won?: boolean;
+  War?: boolean;
 }
 
 interface Card {
@@ -101,18 +102,20 @@ function Deck(
 }
 
 function App() {
-  const [socket, setSocket] = useState<string>(SOCKET_URL); // Reset the socket when game is over
+  const [socket, _] = useState<string>(SOCKET_URL); // Reset the socket when game is over
+  const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
+
   const [isCurrentTurn, setIsCurrentTurn] = useState<boolean>(false);
   const [playerId, setPlayerId] = useState<number>(0);
+  const [isWar, setIsWar] = useState<boolean>(false);
   const [player2Id, setPlayer2Id] = useState<number>(0);
   const [ownCards, setOwnCards] = useState<Card[]>([]);
   const [enemyCards, setEnemyCards] = useState<Card[]>([]);
-  const [won, setWon] = useState<number>(0);
+  const [wonTurn, setWonTurn] = useState<number>(0);
   const [ownScoreCards, setScoreOwnCards] = useState<ScoreCardTuple[]>([]);
   const [enemyScoreCards, setScoreEnemyCards] = useState<ScoreCardTuple[]>([]);
-  const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
 
-  const { lastMessage, sendMessage, getWebSocket } = useWebSocket(socket, {
+  const { lastMessage, sendMessage } = useWebSocket(socket, {
     shouldReconnect: () => true,
     reconnectInterval: 1000,
     reconnectAttempts: 1,
@@ -123,36 +126,62 @@ function App() {
 
   const handleDeckClick = () => {
     if (isCurrentTurn) {
-      if (playerId != 0 && won == playerId) {
-        const rotateY1 = Math.random() - 0.5;
-        const rotateY2 = Math.random() - 0.5;
-
+      if (playerId != 0 && wonTurn == playerId) {
         const ownCard = ownCards[ownCards.length - 1];
         const enemyCard = enemyCards[enemyCards.length - 1];
 
-        setScoreOwnCards([
-          ...ownScoreCards,
-          [ownCard, rotateY1],
-          [enemyCard, rotateY2],
-        ]);
+        let wonCards: ScoreCardTuple[] = [];
+
+        if (isWar) {
+          wonCards = [
+            ...ownCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+            ...enemyCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+          ];
+          setIsWar(false);
+        } else {
+          wonCards = [
+            [ownCard, Math.random() - 0.5],
+            [enemyCard, Math.random() - 0.5],
+          ];
+        }
+        setScoreOwnCards([...ownScoreCards, ...wonCards]);
         setOwnCards([]);
         setEnemyCards([]);
-        setWon(0);
-      } else if (player2Id != 0 && won == player2Id) {
-        const rotateY1 = Math.random() - 0.5;
-        const rotateY2 = Math.random() - 0.5;
-
+        setWonTurn(0);
+      } else if (player2Id != 0 && wonTurn == player2Id) {
         const ownCard = ownCards[ownCards.length - 1];
         const enemyCard = enemyCards[enemyCards.length - 1];
 
-        setScoreEnemyCards([
-          ...ownScoreCards,
-          [ownCard, rotateY1],
-          [enemyCard, rotateY2],
-        ]);
+        let wonCards: ScoreCardTuple[] = [];
+
+        if (isWar) {
+          wonCards = [
+            ...ownCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+            ...enemyCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+          ];
+          setIsWar(false);
+        } else {
+          wonCards = [
+            [ownCard, Math.random() - 0.5],
+            [enemyCard, Math.random() - 0.5],
+          ];
+        }
+        setScoreEnemyCards([...enemyScoreCards, ...wonCards]);
         setOwnCards([]);
         setEnemyCards([]);
-        setWon(0);
+        setWonTurn(0);
       }
       const msg: Message = {
         Typ: playerId === 1 ? 7 : 8,
@@ -168,37 +197,69 @@ function App() {
     if (lastMessage !== null) {
       setMessageHistory((prev) => prev.concat(lastMessage));
       const data: Message = JSON.parse(lastMessage.data);
-      if (playerId != 0 && won == playerId && data.Typ !== 9) {
-        const rotateY1 = Math.random() - 0.5;
-        const rotateY2 = Math.random() - 0.5;
+      console.log(player2Id, playerId, wonTurn);
 
+      if (playerId != 0 && wonTurn == playerId && data.Typ !== 9) {
         const ownCard = ownCards[ownCards.length - 1];
         const enemyCard = enemyCards[enemyCards.length - 1];
 
-        setScoreOwnCards([
-          ...ownScoreCards,
-          [ownCard, rotateY1],
-          [enemyCard, rotateY2],
-        ]);
+        let wonCards: ScoreCardTuple[] = [];
+
+        if (isWar) {
+          wonCards = [
+            ...ownCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+            ...enemyCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+          ];
+          setIsWar(false);
+        } else {
+          wonCards = [
+            [ownCard, Math.random() - 0.5],
+            [enemyCard, Math.random() - 0.5],
+          ];
+        }
+        setScoreOwnCards([...ownScoreCards, ...wonCards]);
         setOwnCards([]);
         setEnemyCards([]);
-        setWon(0);
-      } else if (player2Id != 0 && won == player2Id && data.Typ !== 9) {
-        const rotateY1 = Math.random() - 0.5;
-        const rotateY2 = Math.random() - 0.5;
-
+        setWonTurn(0);
+      } else if (player2Id != 0 && wonTurn == player2Id && data.Typ !== 9) {
         const ownCard = ownCards[ownCards.length - 1];
         const enemyCard = enemyCards[enemyCards.length - 1];
 
-        setScoreEnemyCards([
-          ...ownScoreCards,
-          [ownCard, rotateY1],
-          [enemyCard, rotateY2],
-        ]);
+        let wonCards: ScoreCardTuple[] = [];
+
+        if (isWar) {
+          wonCards = [
+            ...ownCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+            ...enemyCards.map((card) => {
+              const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+              return tuple;
+            }),
+          ];
+          setIsWar(false);
+        } else {
+          wonCards = [
+            [ownCard, Math.random() - 0.5],
+            [enemyCard, Math.random() - 0.5],
+          ];
+        }
+        setScoreEnemyCards([...enemyScoreCards, ...wonCards]);
         setOwnCards([]);
         setEnemyCards([]);
-        setWon(0);
+        setWonTurn(0);
       }
+
+      let ownCard: Card = { Suit: "", Value: "" };
+      let enemyCard: Card = { Suit: "", Value: "" };
+
       switch (data.Typ) {
         case 1: // Handshake
           setPlayerId(data.PlayerId!);
@@ -210,33 +271,88 @@ function App() {
           setPlayer2Id(data.PlayerId!);
           break;
         case 5: // Player1Turn + winning condition
-          let ownCard: Card = { Suit: "", Value: "" };
-          let enemyCard: Card = { Suit: "", Value: "" };
-
           if (playerId === 1) setIsCurrentTurn(true);
+
           if (playerId === 2 && data.Card?.Suit != "") {
             // Receive a card from the server
+            let receiveCards: Card[] = [];
+            if (isWar) {
+              receiveCards = [
+                {
+                  Suit: "",
+                  Value: "",
+                },
+                data.Card!,
+              ];
+            } else {
+              receiveCards = [data.Card!];
+            }
             enemyCard = enemyCards[enemyCards.length - 1];
             ownCard = data.Card!;
-            setOwnCards([...ownCards, data.Card!]);
+            setOwnCards([...ownCards, ...receiveCards]);
           } else if (playerId === 1 && data.Card?.Suit != "") {
+            let receiveCards: Card[] = [];
+            if (isWar) {
+              receiveCards = [
+                {
+                  Suit: "",
+                  Value: "",
+                },
+                data.Card!,
+              ];
+            } else {
+              receiveCards = [data.Card!];
+            }
             enemyCard = data.Card!;
             ownCard = ownCards[ownCards.length - 1];
-            setEnemyCards([...enemyCards, data.Card!]);
+            setEnemyCards([...enemyCards, ...receiveCards]);
           }
           if (data.Won && enemyCard.Suit != "" && ownCard.Suit != "") {
-            setWon(playerId);
-          } else if (!data.Won && enemyCard.Suit != "" && ownCard.Suit != "") {
-            setWon(player2Id);
+            setWonTurn(playerId);
+          } else if (
+            !data.Won &&
+            enemyCard.Suit != "" &&
+            ownCard.Suit != "" &&
+            !data.War
+          ) {
+            setWonTurn(player2Id);
           }
           break;
         case 6: // Player2Turn
           if (playerId === 2) setIsCurrentTurn(true);
           if (playerId === 1 && data.Card) {
             // Receive a card from the server
-            setOwnCards([...ownCards, data.Card!]);
+            let receiveCards: Card[] = [];
+            if (isWar) {
+              receiveCards = [
+                {
+                  Suit: "",
+                  Value: "",
+                },
+                data.Card!,
+              ];
+            } else {
+              receiveCards = [data.Card!];
+            }
+            enemyCard = enemyCards[enemyCards.length - 1];
+            ownCard = data.Card!;
+            setOwnCards([...ownCards, ...receiveCards]);
           } else if (playerId === 2 && data.Card) {
-            setEnemyCards([...enemyCards, data.Card!]);
+            let receiveCards: Card[] = [];
+            if (isWar) {
+              receiveCards = [
+                {
+                  Suit: "",
+                  Value: "",
+                },
+                data.Card!,
+              ];
+            } else {
+              receiveCards = [data.Card!];
+            }
+            enemyCard = data.Card!;
+            ownCard = ownCards[ownCards.length - 1];
+            setEnemyCards([...enemyCards, ...receiveCards]);
           }
           break;
         case 9: // Game over
@@ -245,11 +361,14 @@ function App() {
           setScoreEnemyCards([]);
           setScoreOwnCards([]);
           setIsCurrentTurn(false);
-          setWon(0);
-
-          // alert("Game over");
-
+          setWonTurn(0);
+          alert("Game over");
           break;
+      }
+      if (data.War && !isWar) {
+        setIsWar(true);
+        setEnemyCards([enemyCard]);
+        setOwnCards([ownCard]);
       }
     }
   }, [lastMessage]);
@@ -267,21 +386,62 @@ function App() {
       >
         {player2Id != 0 && <Deck pos={[0, 0, -4]} color="blue" />}
         <Deck color="red" />
-        {enemyCards.length && (
-          <Card
-            pos={[0, 0, -4]}
-            inv={true}
-            suit={enemyCards[enemyCards.length - 1].Suit.toLowerCase()}
-            value={enemyCards[enemyCards.length - 1].Value}
-          />
-        )}
-        {ownCards.length && (
-          <Card
-            pos={[0, 0, 0]}
-            inv={false}
-            suit={ownCards[ownCards.length - 1].Suit.toLowerCase()}
-            value={ownCards[ownCards.length - 1].Value}
-          />
+        {!isWar ? (
+          <group>
+            {enemyCards.length && (
+              <Card
+                pos={[0, 0, -4]}
+                inv={true}
+                suit={enemyCards[enemyCards.length - 1].Suit.toLowerCase()}
+                value={enemyCards[enemyCards.length - 1].Value}
+              />
+            )}
+            {ownCards.length && (
+              <Card
+                pos={[0, 0, 0]}
+                inv={false}
+                suit={ownCards[ownCards.length - 1].Suit.toLowerCase()}
+                value={ownCards[ownCards.length - 1].Value}
+              />
+            )}
+          </group>
+        ) : (
+          <group>
+            {enemyCards.map((card, idx) => {
+              const offset = Math.ceil((idx + 1) / 2);
+              return card && card.Suit != "" ? (
+                <Card
+                  pos={[offset - 1, 0, -4]}
+                  inv={true}
+                  suit={card.Suit.toLowerCase()}
+                  value={card.Value}
+                />
+              ) : (
+                <TopCard
+                  pos={[3 + offset - 1, -2.5, -7]}
+                  rotation={[0, 0, 0]}
+                  color="blue"
+                />
+              );
+            })}
+            {ownCards.map((card, idx) => {
+              const offset = Math.ceil((idx + 1) / 2);
+              return card && card.Suit != "" ? (
+                <Card
+                  pos={[offset - 1, 0, 0]}
+                  inv={false}
+                  suit={card.Suit.toLowerCase()}
+                  value={card.Value}
+                />
+              ) : (
+                <TopCard
+                  pos={[3 + offset - 1, -2.5, -3]}
+                  rotation={[0, 0, 0]}
+                  color="red"
+                />
+              );
+            })}
+          </group>
         )}
         {ownScoreCards.map((tuple) => (
           <TopCard pos={[3, -2.5, 1]} rotation={[0, tuple[1], 0]} color="red" />
