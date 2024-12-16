@@ -18,6 +18,8 @@ interface Card {
   Value: string;
 }
 
+type ScoreCardTuple = [Card, number];
+
 const SOCKET_URL = "ws://localhost:3000";
 
 function Card({
@@ -47,10 +49,16 @@ function Card({
 function TopCard(
   {
     color,
+    pos,
+    rotation,
   }: {
     color?: "blue" | "red";
+    pos?: [number, number, number];
+    rotation?: [number, number, number];
   } = {
     color: "red",
+    pos: [0, 0, 0],
+    rotation: [0, 0, 0],
   }
 ) {
   const deckRef = useRef<Mesh>(null);
@@ -59,7 +67,7 @@ function TopCard(
   const texture = useTexture(cardTexture);
 
   return (
-    <mesh ref={deckRef} position={[0, -2, -3]}>
+    <mesh ref={deckRef} position={pos} rotation={rotation}>
       <meshBasicMaterial map={texture} polygonOffset polygonOffsetFactor={-1} />
       <boxGeometry args={[2, 0, 3]} />
     </mesh>
@@ -83,7 +91,7 @@ function Deck(
 ) {
   return (
     <group position={pos} rotation={rotation}>
-      <TopCard color={color} />
+      <TopCard pos={[0, -2, -3]} color={color} />
       <mesh position={[0, -2.25, -3]}>
         <meshBasicMaterial color="white" />
         <boxGeometry args={[2, 0.5, 3]} />
@@ -98,8 +106,9 @@ function App() {
   const [player2Id, setPlayer2Id] = useState<number>(0);
   const [ownCards, setOwnCards] = useState<Card[]>([]);
   const [enemyCards, setEnemyCards] = useState<Card[]>([]);
-  const [ownScoreCards, setScoreOwnCards] = useState<Card[]>([]);
-  const [enemyScoreCards, setScoreEnemyCards] = useState<Card[]>([]);
+  const [won, setWon] = useState<number>(0);
+  const [ownScoreCards, setScoreOwnCards] = useState<ScoreCardTuple[]>([]);
+  const [enemyScoreCards, setScoreEnemyCards] = useState<ScoreCardTuple[]>([]);
   const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
 
   const { lastMessage, sendMessage } = useWebSocket(SOCKET_URL);
@@ -109,16 +118,79 @@ function App() {
 
   const handleDeckClick = () => {
     if (isCurrentTurn) {
+      if (playerId != 0 && won == playerId) {
+        const rotateY1 = Math.random() - 0.5;
+        const rotateY2 = Math.random() - 0.5;
+
+        const ownCard = ownCards[ownCards.length - 1];
+        const enemyCard = enemyCards[enemyCards.length - 1];
+
+        setScoreOwnCards([
+          ...ownScoreCards,
+          [ownCard, rotateY1],
+          [enemyCard, rotateY2],
+        ]);
+        setOwnCards([]);
+        setEnemyCards([]);
+        setWon(0);
+      } else if (player2Id != 0 && won == player2Id) {
+        const rotateY1 = Math.random() - 0.5;
+        const rotateY2 = Math.random() - 0.5;
+
+        const ownCard = ownCards[ownCards.length - 1];
+        const enemyCard = enemyCards[enemyCards.length - 1];
+
+        setScoreEnemyCards([
+          ...ownScoreCards,
+          [ownCard, rotateY1],
+          [enemyCard, rotateY2],
+        ]);
+        setOwnCards([]);
+        setEnemyCards([]);
+        setWon(0);
+      }
       const msg: Message = {
         Typ: playerId === 1 ? 7 : 8,
         PlayerId: playerId,
       };
+
       handleSendMessage(JSON.stringify(msg));
       setIsCurrentTurn(false);
     }
   };
 
   useEffect(() => {
+    if (playerId != 0 && won == playerId) {
+      const rotateY1 = Math.random() - 0.5;
+      const rotateY2 = Math.random() - 0.5;
+
+      const ownCard = ownCards[ownCards.length - 1];
+      const enemyCard = enemyCards[enemyCards.length - 1];
+
+      setScoreOwnCards([
+        ...ownScoreCards,
+        [ownCard, rotateY1],
+        [enemyCard, rotateY2],
+      ]);
+      setOwnCards([]);
+      setEnemyCards([]);
+      setWon(0);
+    } else if (player2Id != 0 && won == player2Id) {
+      const rotateY1 = Math.random() - 0.5;
+      const rotateY2 = Math.random() - 0.5;
+
+      const ownCard = ownCards[ownCards.length - 1];
+      const enemyCard = enemyCards[enemyCards.length - 1];
+
+      setScoreEnemyCards([
+        ...ownScoreCards,
+        [ownCard, rotateY1],
+        [enemyCard, rotateY2],
+      ]);
+      setOwnCards([]);
+      setEnemyCards([]);
+      setWon(0);
+    }
     if (lastMessage !== null) {
       setMessageHistory((prev) => prev.concat(lastMessage));
       const data: Message = JSON.parse(lastMessage.data);
@@ -148,9 +220,9 @@ function App() {
             setEnemyCards([...enemyCards, data.Card!]);
           }
           if (data.Won && enemyCard.Suit != "" && ownCard.Suit != "") {
-            setScoreOwnCards([...ownScoreCards, ownCard, enemyCard]);
+            setWon(playerId);
           } else if (!data.Won && enemyCard.Suit != "" && ownCard.Suit != "") {
-            setScoreEnemyCards([...enemyScoreCards, enemyCard, ownCard]);
+            setWon(player2Id);
           }
           break;
         case 6: // Player2Turn
@@ -175,7 +247,7 @@ function App() {
     <div id="canvas-container">
       <Canvas
         onClick={handleDeckClick}
-        camera={{ position: cameraPosition, rotation: [-0.8, 0, 0] }}
+        camera={{ position: cameraPosition, rotation: [-1, 0, 0] }}
       >
         {player2Id != 0 && <Deck pos={[0, 0, -4]} color="blue" />}
         <Deck color="red" />
@@ -195,6 +267,16 @@ function App() {
             value={ownCards[ownCards.length - 1].Value}
           />
         )}
+        {ownScoreCards.map((tuple) => (
+          <TopCard pos={[3, -2.5, 1]} rotation={[0, tuple[1], 0]} color="red" />
+        ))}
+        {enemyScoreCards.map((tuple) => (
+          <TopCard
+            pos={[3, -2.5, -11]}
+            rotation={[0, tuple[1], 0]}
+            color="blue"
+          />
+        ))}
       </Canvas>
     </div>
   );
