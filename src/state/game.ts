@@ -1,5 +1,6 @@
 import { createWithEqualityFn as create } from "zustand/traditional";
-import { Card, ScoreCardTuple } from "../types";
+import { Card, Message, ScoreCardTuple } from "../types";
+import { WebSocketMessage } from "react-use-websocket/dist/lib/types";
 
 type GameState = {
   isCurrentTurn: boolean;
@@ -27,6 +28,7 @@ type GameState = {
   addEnemyCards: (receive: Card[]) => void;
   setEnemyCard: (enemyCard: Card) => void;
   setOwnCard: (ownCard: Card) => void;
+  setGameOver: () => void;
 };
 
 export const useGamestate = create<GameState>((set) => ({
@@ -66,4 +68,134 @@ export const useGamestate = create<GameState>((set) => ({
     })),
   setEnemyCard: (enemyCard: Card) => set({ enemyCards: [enemyCard] }),
   setOwnCard: (ownCard: Card) => set({ ownCards: [ownCard] }),
+  setGameOver: () =>
+    set(() => ({
+      ownCards: [],
+      enemyCards: [],
+      enemyScoreCards: [],
+      ownScoreCards: [],
+      isWar: false,
+      isCurrentTurn: false,
+    })),
 }));
+
+export function handleWinner(state: GameState) {
+  const ownCard = state.ownCards[state.ownCards.length - 1];
+  const enemyCard = state.enemyCards[state.enemyCards.length - 1];
+
+  let wonCards: ScoreCardTuple[] = [];
+
+  if (state.isWar) {
+    wonCards = [
+      ...state.ownCards.map((card) => {
+        const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+        return tuple;
+      }),
+      ...state.enemyCards.map((card) => {
+        const tuple = [card, Math.random() - 0.5] as ScoreCardTuple;
+        return tuple;
+      }),
+    ];
+    state.setIsWar(false);
+  } else {
+    wonCards = [
+      [ownCard, Math.random() - 0.5],
+      [enemyCard, Math.random() - 0.5],
+    ];
+  }
+  if (state.wonTurn == state.playerId) {
+    state.addOwnScore(wonCards);
+  } else {
+    state.addEnemyScore(wonCards);
+  }
+  state.clearOwnCards();
+  state.clearEnemyCards();
+  state.setTurnWinner(0);
+}
+
+export function handleCommand(state: GameState, message: MessageEvent<any>) {
+  let ownCard: Card;
+  let enemyCard: Card;
+
+  const data: Message = JSON.parse(message.data);
+
+  if (data.Typ !== 9 && state.wonTurn !== 0) handleWinner(state);
+
+  switch (data.Typ) {
+    case 1: // Handshake
+      state.setPlayerId(data.PlayerId!);
+      if (data.PlayerId === 2) {
+        state.setPlayer2Id(1);
+      }
+      break;
+    case 2: // Another player connected
+      state.setPlayer2Id(data.PlayerId!);
+      break;
+    case 5: // Player1Turn + winning condition
+      if (state.playerId === 1) state.setIsCurrentTurn(true);
+      if (data.Card && data.Card.Suit != "") {
+        let receiveCards: Card[] = [];
+        if (state.isWar) {
+          receiveCards = [
+            {
+              Suit: "",
+              Value: "",
+            },
+            data.Card,
+          ];
+        } else {
+          receiveCards = [data.Card];
+        }
+        if (state.playerId === 2) {
+          enemyCard = state.enemyCards[state.enemyCards.length - 1];
+          ownCard = data.Card;
+          state.addOwnCards(receiveCards);
+        } else {
+          enemyCard = data.Card;
+          ownCard = state.ownCards[state.ownCards.length - 1];
+          state.addEnemyCards(receiveCards);
+        }
+        if (data.Won) {
+          state.setTurnWinner(state.playerId);
+        } else if (!data.Won && !data.War) {
+          state.setTurnWinner(state.player2Id);
+        }
+      }
+      break;
+    case 6: // Player2Turn
+      if (state.playerId === 2) state.setIsCurrentTurn(true);
+      if (data.Card && data.Card.Suit != "") {
+        let receiveCards: Card[] = [];
+        if (state.isWar) {
+          receiveCards = [
+            {
+              Suit: "",
+              Value: "",
+            },
+            data.Card,
+          ];
+        } else {
+          receiveCards = [data.Card];
+        }
+        if (state.playerId === 2) {
+          enemyCard = data.Card;
+          ownCard = state.ownCards[state.ownCards.length - 1];
+          state.addEnemyCards(receiveCards);
+        } else {
+          enemyCard = state.enemyCards[state.enemyCards.length - 1];
+          ownCard = data.Card;
+          state.addOwnCards(receiveCards);
+        }
+      }
+      break;
+    case 9:
+      state.setGameOver();
+      alert("Game over");
+      break;
+  }
+  if (data.War && !state.isWar) {
+    state.setIsWar(true);
+    state.setEnemyCard(enemyCard!);
+    state.setOwnCard(ownCard!);
+  }
+}
