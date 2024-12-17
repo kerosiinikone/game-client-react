@@ -1,9 +1,13 @@
-import { useTexture } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { WebSocketMessage } from "react-use-websocket/dist/lib/types";
-import { Mesh, Vector3 } from "three";
+import { Vector3 } from "three";
+import PCard from "./components/Card";
+import Deck from "./components/Deck";
+import TopCard from "./components/TopCard";
+import type { Card, ScoreCardTuple } from "./types";
+import { useGamestate } from "./state/game";
 
 interface Message {
   Typ: number;
@@ -14,112 +18,67 @@ interface Message {
   War?: boolean;
 }
 
-interface Card {
-  Suit: string;
-  Value: string;
-}
-
-type ScoreCardTuple = [Card, number];
-
 const SOCKET_URL = "ws://localhost:3000";
 
-function Card({
-  suit,
-  value,
-  inv,
-  pos,
-}: {
-  suit: string;
-  value: string;
-  pos: [number, number, number];
-  inv: boolean;
-}) {
-  const cardTexture = `/assets/cards/${value}_of_${suit}.png`;
-  const texture = useTexture(cardTexture);
-
-  return (
-    <group position={pos}>
-      <mesh position={[3, -2.5, -3]} rotation={[0, inv ? Math.PI : 0, 0]}>
-        <meshBasicMaterial map={texture} />
-        <boxGeometry args={[2, 0, 3]} />
-      </mesh>
-    </group>
-  );
-}
-
-function TopCard(
-  {
-    color,
-    pos,
-    rotation,
-  }: {
-    color?: "blue" | "red";
-    pos?: [number, number, number];
-    rotation?: [number, number, number];
-  } = {
-    color: "red",
-    pos: [0, 0, 0],
-    rotation: [0, 0, 0],
-  }
-) {
-  const deckRef = useRef<Mesh>(null);
-  const cardTexture =
-    color === "red" ? "/assets/redcard.png" : "/assets/bluecard.png";
-  const texture = useTexture(cardTexture);
-
-  return (
-    <mesh ref={deckRef} position={pos} rotation={rotation}>
-      <meshBasicMaterial map={texture} polygonOffset polygonOffsetFactor={-1} />
-      <boxGeometry args={[2, 0, 3]} />
-    </mesh>
-  );
-}
-
-function Deck(
-  {
-    pos,
-    rotation,
-    color,
-  }: {
-    pos?: [number, number, number];
-    rotation?: [number, number, number];
-    color?: "blue" | "red";
-  } = {
-    pos: [0, 0, 0],
-    rotation: [0, 0, 0],
-    color: "red",
-  }
-) {
-  return (
-    <group position={pos} rotation={rotation}>
-      <TopCard pos={[0, -2, -3]} color={color} />
-      <mesh position={[0, -2.25, -3]}>
-        <meshBasicMaterial color="white" />
-        <boxGeometry args={[2, 0.5, 3]} />
-      </mesh>
-    </group>
-  );
-}
-
-function App() {
-  const [socket, _] = useState<string>(SOCKET_URL); // Reset the socket when game is over
+function Game() {
   const [__, setMessageHistory] = useState<MessageEvent<any>[]>([]);
-
-  const [isCurrentTurn, setIsCurrentTurn] = useState<boolean>(false);
-  const [playerId, setPlayerId] = useState<number>(0);
-  const [isWar, setIsWar] = useState<boolean>(false);
-  const [player2Id, setPlayer2Id] = useState<number>(0);
-  const [ownCards, setOwnCards] = useState<Card[]>([]);
-  const [enemyCards, setEnemyCards] = useState<Card[]>([]);
-  const [wonTurn, setWonTurn] = useState<number>(0);
-  const [ownScoreCards, setScoreOwnCards] = useState<ScoreCardTuple[]>([]);
-  const [enemyScoreCards, setScoreEnemyCards] = useState<ScoreCardTuple[]>([]);
-
-  const { lastMessage, sendMessage } = useWebSocket(socket, {
+  const { lastMessage, sendMessage } = useWebSocket(SOCKET_URL, {
     shouldReconnect: () => true,
     reconnectInterval: 1000,
     reconnectAttempts: 1,
   });
+
+  const {
+    enemyCards,
+    player2Id,
+    ownCards,
+    playerId,
+    isCurrentTurn,
+    isWar,
+    wonTurn,
+    ownScoreCards,
+    enemyScoreCards,
+    setTurnWinner,
+    setPlayerId,
+    setPlayer2Id,
+    setIsCurrentTurn,
+    clearOwnScoreCards,
+    addOwnScore,
+    clearEnemyScoreCards,
+    clearOwnCards,
+    clearEnemyCards,
+    addEnemyScore,
+    setEnemyCard,
+    setOwnCard,
+    addOwnCards,
+    addEnemyCards,
+    setIsWar,
+  } = useGamestate((state) => ({
+    isCurrentTurn: state.isCurrentTurn,
+    playerId: state.playerId,
+    isWar: state.isWar,
+    player2Id: state.player2Id,
+    ownCards: state.ownCards,
+    enemyCards: state.enemyCards,
+    wonTurn: state.wonTurn,
+    ownScoreCards: state.ownScoreCards,
+    enemyScoreCards: state.enemyScoreCards,
+    clearOwnCards: state.clearOwnCards,
+    setIsWar: state.setIsWar,
+    setTurnWinner: state.setTurnWinner,
+    setPlayerId: state.setPlayerId,
+    setEnemyCard: state.setEnemyCard,
+    setOwnCard: state.setOwnCard,
+    clearEnemyScoreCards: state.clearEnemyScoreCards,
+    addOwnScore: state.addOwnScore,
+    clearEnemyCards: state.clearEnemyCards,
+    clearOwnScoreCards: state.clearOwnScoreCards,
+    setPlayer2Id: state.setPlayer2Id,
+    addOwnCards: state.addOwnCards,
+    addEnemyCards: state.addEnemyCards,
+    setIsCurrentTurn: state.setIsCurrentTurn,
+    addEnemyScore: state.addEnemyScore,
+  }));
 
   const x = Math.min(4 * (window.innerWidth / 1000), 4);
   const cameraPosition = new Vector3(x, 5, 2);
@@ -150,10 +109,10 @@ function App() {
             [enemyCard, Math.random() - 0.5],
           ];
         }
-        setScoreOwnCards([...ownScoreCards, ...wonCards]);
-        setOwnCards([]);
-        setEnemyCards([]);
-        setWonTurn(0);
+        addOwnScore(wonCards);
+        clearOwnCards();
+        clearEnemyCards();
+        setTurnWinner(0);
       } else if (player2Id != 0 && wonTurn == player2Id) {
         const ownCard = ownCards[ownCards.length - 1];
         const enemyCard = enemyCards[enemyCards.length - 1];
@@ -178,10 +137,10 @@ function App() {
             [enemyCard, Math.random() - 0.5],
           ];
         }
-        setScoreEnemyCards([...enemyScoreCards, ...wonCards]);
-        setOwnCards([]);
-        setEnemyCards([]);
-        setWonTurn(0);
+        addEnemyScore(wonCards);
+        clearOwnCards();
+        clearEnemyCards();
+        setTurnWinner(0);
       }
       const msg: Message = {
         Typ: playerId === 1 ? 7 : 8,
@@ -194,10 +153,9 @@ function App() {
   };
 
   useEffect(() => {
-    if (lastMessage !== null) {
+    if (lastMessage && lastMessage !== null) {
       setMessageHistory((prev) => prev.concat(lastMessage));
       const data: Message = JSON.parse(lastMessage.data);
-      console.log(player2Id, playerId, wonTurn);
 
       if (playerId != 0 && wonTurn == playerId && data.Typ !== 9) {
         const ownCard = ownCards[ownCards.length - 1];
@@ -223,10 +181,10 @@ function App() {
             [enemyCard, Math.random() - 0.5],
           ];
         }
-        setScoreOwnCards([...ownScoreCards, ...wonCards]);
-        setOwnCards([]);
-        setEnemyCards([]);
-        setWonTurn(0);
+        addOwnScore(wonCards);
+        clearOwnCards();
+        clearEnemyCards();
+        setTurnWinner(0);
       } else if (player2Id != 0 && wonTurn == player2Id && data.Typ !== 9) {
         const ownCard = ownCards[ownCards.length - 1];
         const enemyCard = enemyCards[enemyCards.length - 1];
@@ -251,10 +209,10 @@ function App() {
             [enemyCard, Math.random() - 0.5],
           ];
         }
-        setScoreEnemyCards([...enemyScoreCards, ...wonCards]);
-        setOwnCards([]);
-        setEnemyCards([]);
-        setWonTurn(0);
+        addEnemyScore(wonCards);
+        clearOwnCards();
+        clearEnemyCards();
+        setTurnWinner(0);
       }
 
       let ownCard: Card = { Suit: "", Value: "" };
@@ -289,7 +247,7 @@ function App() {
             }
             enemyCard = enemyCards[enemyCards.length - 1];
             ownCard = data.Card!;
-            setOwnCards([...ownCards, ...receiveCards]);
+            addOwnCards(receiveCards);
           } else if (playerId === 1 && data.Card?.Suit != "") {
             let receiveCards: Card[] = [];
             if (isWar) {
@@ -305,17 +263,17 @@ function App() {
             }
             enemyCard = data.Card!;
             ownCard = ownCards[ownCards.length - 1];
-            setEnemyCards([...enemyCards, ...receiveCards]);
+            addEnemyCards(receiveCards);
           }
           if (data.Won && enemyCard.Suit != "" && ownCard.Suit != "") {
-            setWonTurn(playerId);
+            setTurnWinner(playerId);
           } else if (
             !data.Won &&
             enemyCard.Suit != "" &&
             ownCard.Suit != "" &&
             !data.War
           ) {
-            setWonTurn(player2Id);
+            setTurnWinner(player2Id);
           }
           break;
         case 6: // Player2Turn
@@ -336,7 +294,7 @@ function App() {
             }
             enemyCard = enemyCards[enemyCards.length - 1];
             ownCard = data.Card!;
-            setOwnCards([...ownCards, ...receiveCards]);
+            addOwnCards(receiveCards);
           } else if (playerId === 2 && data.Card) {
             let receiveCards: Card[] = [];
             if (isWar) {
@@ -352,23 +310,24 @@ function App() {
             }
             enemyCard = data.Card!;
             ownCard = ownCards[ownCards.length - 1];
-            setEnemyCards([...enemyCards, ...receiveCards]);
+            addEnemyCards(receiveCards);
           }
           break;
         case 9: // Game over
-          setOwnCards([]);
-          setEnemyCards([]);
-          setScoreEnemyCards([]);
-          setScoreOwnCards([]);
+          clearOwnCards();
+          clearEnemyCards();
+          clearEnemyScoreCards();
+          clearOwnScoreCards();
+          setIsWar(false);
           setIsCurrentTurn(false);
-          setWonTurn(0);
+          setTurnWinner(0);
           alert("Game over");
           break;
       }
       if (data.War && !isWar) {
         setIsWar(true);
-        setEnemyCards([enemyCard]);
-        setOwnCards([ownCard]);
+        setEnemyCard(enemyCard);
+        setOwnCard(ownCard);
       }
     }
   }, [lastMessage]);
@@ -389,7 +348,7 @@ function App() {
         {!isWar ? (
           <group>
             {enemyCards.length && (
-              <Card
+              <PCard
                 pos={[0, 0, -4]}
                 inv={true}
                 suit={enemyCards[enemyCards.length - 1].Suit.toLowerCase()}
@@ -397,7 +356,7 @@ function App() {
               />
             )}
             {ownCards.length && (
-              <Card
+              <PCard
                 pos={[0, 0, 0]}
                 inv={false}
                 suit={ownCards[ownCards.length - 1].Suit.toLowerCase()}
@@ -410,7 +369,7 @@ function App() {
             {enemyCards.map((card, idx) => {
               const offset = Math.ceil((idx + 1) / 2);
               return card && card.Suit != "" ? (
-                <Card
+                <PCard
                   pos={[offset - 1, 0, -4]}
                   inv={true}
                   suit={card.Suit.toLowerCase()}
@@ -427,7 +386,7 @@ function App() {
             {ownCards.map((card, idx) => {
               const offset = Math.ceil((idx + 1) / 2);
               return card && card.Suit != "" ? (
-                <Card
+                <PCard
                   pos={[offset - 1, 0, 0]}
                   inv={false}
                   suit={card.Suit.toLowerCase()}
@@ -458,4 +417,4 @@ function App() {
   );
 }
 
-export default App;
+export default Game;
