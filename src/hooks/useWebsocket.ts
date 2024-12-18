@@ -1,7 +1,6 @@
-import { useState, useEffect, useCallback } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { WebSocketMessage } from "react-use-websocket/dist/lib/types";
-import { Card } from "../types";
 
 const SOCKET_URL = "ws://localhost:3000";
 

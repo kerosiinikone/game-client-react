@@ -4,36 +4,61 @@ import { Vector3 } from "three";
 import PCard from "./components/Card";
 import Deck from "./components/Deck";
 import TopCard from "./components/TopCard";
+import { useHandleCommand } from "./hooks/useHandleCommand";
 import { useGameWebSocket } from "./hooks/useWebsocket";
-import { handleCommand, handleWinner, useGamestate } from "./state/game";
+import { useGamestate } from "./state/game";
 import type { Message } from "./types";
 
 function Game() {
-  // Do I need to consume the entire state?
-  const state = useGamestate((state) => state);
+  const {
+    isCurrentTurn,
+    playerId,
+    isWar,
+    player2Id,
+    ownCards,
+    enemyCards,
+    wonTurn,
+    ownScoreCards,
+    setIsCurrentTurn,
+    enemyScoreCards,
+    setWinner,
+  } = useGamestate((state) => ({
+    isCurrentTurn: state.isCurrentTurn,
+    playerId: state.playerId,
+    isWar: state.isWar,
+    player2Id: state.player2Id,
+    ownCards: state.ownCards,
+    enemyCards: state.enemyCards,
+    wonTurn: state.wonTurn,
+    ownScoreCards: state.ownScoreCards,
+    enemyScoreCards: state.enemyScoreCards,
+    setWinner: state.checkWinner,
+    setIsCurrentTurn: state.setIsCurrentTurn,
+  }));
 
   const { handleSendMessage, lastMessage: message } = useGameWebSocket();
+  const { handleCommand } = useHandleCommand();
 
   const x = Math.min(4 * (window.innerWidth / 1000), 4);
   const cameraPosition = new Vector3(x, 5, 2);
 
   function handleDeckClick() {
-    if (state.isCurrentTurn) {
-      if (state.wonTurn !== 0) handleWinner(state);
+    if (isCurrentTurn) {
+      if (wonTurn !== 0) setWinner();
 
-      const msg: Message = {
-        Typ: state.playerId === 1 ? 7 : 8,
-        PlayerId: state.playerId,
+      const wsMsg: Message = {
+        Typ: playerId === 1 ? 7 : 8,
+        PlayerId: playerId,
       };
 
-      handleSendMessage(JSON.stringify(msg));
-      state.setIsCurrentTurn(false);
+      handleSendMessage(JSON.stringify(wsMsg));
+      setIsCurrentTurn(false);
     }
   }
 
   useEffect(() => {
     if (message != null) {
-      handleCommand(state, message);
+      handleCommand(message);
     }
   }, [message]);
 
@@ -43,34 +68,30 @@ function Game() {
         onClick={handleDeckClick}
         camera={{ position: cameraPosition, rotation: [-1, 0, 0] }}
       >
-        {state.player2Id != 0 && <Deck pos={[0, 0, -4]} color="blue" />}
+        {player2Id != 0 && <Deck pos={[0, 0, -4]} color="blue" />}
         <Deck color="red" />
-        {!state.isWar ? (
+        {!isWar ? (
           <group>
-            {state.enemyCards.length && (
+            {enemyCards.length && (
               <PCard
                 pos={[0, 0, -4]}
                 inv={true}
-                suit={state.enemyCards[
-                  state.enemyCards.length - 1
-                ].Suit.toLowerCase()}
-                value={state.enemyCards[state.enemyCards.length - 1].Value}
+                suit={enemyCards[enemyCards.length - 1].Suit.toLowerCase()}
+                value={enemyCards[enemyCards.length - 1].Value}
               />
             )}
-            {state.ownCards.length && (
+            {ownCards.length && (
               <PCard
                 pos={[0, 0, 0]}
                 inv={false}
-                suit={state.ownCards[
-                  state.ownCards.length - 1
-                ].Suit.toLowerCase()}
-                value={state.ownCards[state.ownCards.length - 1].Value}
+                suit={ownCards[ownCards.length - 1].Suit.toLowerCase()}
+                value={ownCards[ownCards.length - 1].Value}
               />
             )}
           </group>
         ) : (
           <group>
-            {state.enemyCards.map((card, idx) => {
+            {enemyCards.map((card, idx) => {
               const offset = Math.ceil((idx + 1) / 2);
               return card && card.Suit != "" ? (
                 <PCard
@@ -87,7 +108,7 @@ function Game() {
                 />
               );
             })}
-            {state.ownCards.map((card, idx) => {
+            {ownCards.map((card, idx) => {
               const offset = Math.ceil((idx + 1) / 2);
               return card && card.Suit != "" ? (
                 <PCard
@@ -106,10 +127,10 @@ function Game() {
             })}
           </group>
         )}
-        {state.ownScoreCards.map((tuple) => (
+        {ownScoreCards.map((tuple) => (
           <TopCard pos={[3, -2.5, 1]} rotation={[0, tuple[1], 0]} color="red" />
         ))}
-        {state.enemyScoreCards.map((tuple) => (
+        {enemyScoreCards.map((tuple) => (
           <TopCard
             pos={[3, -2.5, -11]}
             rotation={[0, tuple[1], 0]}
