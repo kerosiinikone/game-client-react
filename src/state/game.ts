@@ -27,6 +27,7 @@ type GameStateModifiers = {
   setGameOver: () => void;
 
   checkWinner: () => void;
+  reset: () => void;
 };
 
 export type GameState = GameStateVars & GameStateModifiers;
@@ -73,6 +74,7 @@ export const useGamestate = create(
       set(() => ({
         ownCards: [],
         enemyCards: [],
+        wonTurn: 0,
         enemyScoreCards: [],
         ownScoreCards: [],
         isWar: false,

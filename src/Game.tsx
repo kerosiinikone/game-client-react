@@ -1,9 +1,9 @@
 import { Canvas } from "@react-three/fiber";
 import { useEffect } from "react";
 import { Vector3 } from "three";
-import PCard from "./components/Card";
-import Deck from "./components/Deck";
-import TopCard from "./components/TopCard";
+import PCard from "./interface/Card";
+import Deck from "./interface/Deck";
+import TopCard from "./interface/TopCard";
 import { useHandleCommand } from "./hooks/useHandleCommand";
 import { useGameWebSocket } from "./hooks/useWebsocket";
 import { useGamestate } from "./state/game";
@@ -68,59 +68,79 @@ function Game() {
         onClick={handleDeckClick}
         camera={{ position: cameraPosition, rotation: [-1, 0, 0] }}
       >
+        <ambientLight intensity={0.5} />
+        <pointLight position={[10, 10, 10]} />
         {player2Id != 0 && <Deck pos={[0, 0, -4]} color="blue" />}
         <Deck color="red" />
-        {!isWar ? (
+
+        <group>
+          {enemyCards.length && (
+            <PCard
+              pos={[0, 0, -4]}
+              inv={true}
+              suit={
+                !isWar
+                  ? enemyCards[enemyCards.length - 1].Suit.toLowerCase()
+                  : enemyCards[0].Suit.toLowerCase()
+              }
+              value={
+                !isWar
+                  ? enemyCards[enemyCards.length - 1].Value.toLowerCase()
+                  : enemyCards[0].Value.toLowerCase()
+              }
+            />
+          )}
+          {ownCards.length && (
+            <PCard
+              pos={[0, 0, 0]}
+              inv={false}
+              suit={
+                !isWar
+                  ? ownCards[ownCards.length - 1].Suit.toLowerCase()
+                  : ownCards[0].Suit.toLowerCase()
+              }
+              value={
+                !isWar
+                  ? ownCards[ownCards.length - 1].Value.toLowerCase()
+                  : ownCards[0].Value.toLowerCase()
+              }
+            />
+          )}
+        </group>
+        {isWar && (
           <group>
-            {enemyCards.length && (
-              <PCard
-                pos={[0, 0, -4]}
-                inv={true}
-                suit={enemyCards[enemyCards.length - 1].Suit.toLowerCase()}
-                value={enemyCards[enemyCards.length - 1].Value}
-              />
-            )}
-            {ownCards.length && (
-              <PCard
-                pos={[0, 0, 0]}
-                inv={false}
-                suit={ownCards[ownCards.length - 1].Suit.toLowerCase()}
-                value={ownCards[ownCards.length - 1].Value}
-              />
-            )}
-          </group>
-        ) : (
-          <group>
-            {enemyCards.map((card, idx) => {
+            {enemyCards.slice(1).map((card, idx) => {
               const offset = Math.ceil((idx + 1) / 2);
-              return card && card.Suit != "" ? (
+              return card.Suit ? (
                 <PCard
-                  pos={[offset - 1, 0, -4]}
+                  pos={[offset + 1, 0, -4]}
                   inv={true}
                   suit={card.Suit.toLowerCase()}
                   value={card.Value}
                 />
               ) : (
                 <TopCard
-                  pos={[3 + offset - 1, -2.5, -7]}
-                  rotation={[0, 0, 0]}
+                  endPos={[3 + offset, -2.5, -7]}
+                  startPos={[0, 0, -4]}
+                  r={[0, 0, 0]}
                   color="blue"
                 />
               );
             })}
-            {ownCards.map((card, idx) => {
+            {ownCards.slice(1).map((card, idx) => {
               const offset = Math.ceil((idx + 1) / 2);
-              return card && card.Suit != "" ? (
+              return card.Suit ? (
                 <PCard
-                  pos={[offset - 1, 0, 0]}
+                  pos={[offset + 1, 0, 0]}
                   inv={false}
                   suit={card.Suit.toLowerCase()}
                   value={card.Value}
                 />
               ) : (
                 <TopCard
-                  pos={[3 + offset - 1, -2.5, -3]}
-                  rotation={[0, 0, 0]}
+                  endPos={[3 + offset, -2.5, -3]}
+                  startPos={[0, 0, 0]}
+                  r={[0, 0, 0]}
                   color="red"
                 />
               );
@@ -128,12 +148,18 @@ function Game() {
           </group>
         )}
         {ownScoreCards.map((tuple) => (
-          <TopCard pos={[3, -2.5, 1]} rotation={[0, tuple[1], 0]} color="red" />
+          <TopCard
+            endPos={[3, -2.5, 1]}
+            r={[0, tuple[1], 0]}
+            animate={false}
+            color="red"
+          />
         ))}
         {enemyScoreCards.map((tuple) => (
           <TopCard
-            pos={[3, -2.5, -11]}
-            rotation={[0, tuple[1], 0]}
+            endPos={[3, -2.5, -11]}
+            r={[0, tuple[1], 0]}
+            animate={false}
             color="blue"
           />
         ))}

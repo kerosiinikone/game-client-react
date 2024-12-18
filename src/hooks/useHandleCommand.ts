@@ -18,7 +18,6 @@ export const useHandleCommand = () => {
         console.error("Invalid message received", message);
         return;
       }
-
       if (data.Typ !== 9 && state.wonTurn !== 0) state.checkWinner();
 
       switch (data.Typ as MessageType) {
@@ -35,7 +34,7 @@ export const useHandleCommand = () => {
           [ownCard, enemyCard] = handlePlayer2Turn(data);
           break;
         case MessageType.GameOver:
-          state.setGameOver();
+          state.reset();
           alert("Game over");
           break;
         default:
