@@ -2,9 +2,7 @@ import { combine } from "zustand/middleware";
 import { createWithEqualityFn as create } from "zustand/traditional";
 import { Card, ScoreCardTuple } from "../types";
 
-// Set up the initial state from a config field at hanshake
-
-export type GameStateVars = {
+type GameStateVars = {
   isCurrentTurn: boolean;
   playerId: number;
   isWar: boolean;
@@ -16,18 +14,12 @@ export type GameStateVars = {
   enemyScoreCards: ScoreCardTuple[];
 };
 
-export type GameStateModifiers = {
-  addEnemyScore: (wonCards: ScoreCardTuple[]) => void;
+type GameStateModifiers = {
   setTurnWinner: (wonTurn: number) => void;
   setPlayerId: (playerId: number) => void;
   setPlayer2Id: (player2Id: number) => void;
   setIsCurrentTurn: (isCurrentTurn: boolean) => void;
   setIsWar: (isWar: boolean) => void;
-  addOwnScore: (wonCards: ScoreCardTuple[]) => void;
-  clearEnemyScoreCards: () => void;
-  clearOwnScoreCards: () => void;
-  clearOwnCards: () => void;
-  clearEnemyCards: () => void;
   addOwnCards: (receive: Card[]) => void;
   addEnemyCards: (receive: Card[]) => void;
   setEnemyCard: (enemyCard: Card) => void;
@@ -63,22 +55,10 @@ export const useGamestate = create(
     ownScoreCards: [],
     enemyScoreCards: [],
     setIsWar: (isWar: boolean) => set({ isWar }),
-    clearOwnCards: () => set({ ownCards: [] }),
-    clearEnemyCards: () => set({ enemyCards: [] }),
     setTurnWinner: (wonTurn: number) => set({ wonTurn }),
     setPlayerId: (playerId: number) => set({ playerId }),
     setPlayer2Id: (player2Id: number) => set({ player2Id }),
     setIsCurrentTurn: (isCurrentTurn: boolean) => set({ isCurrentTurn }),
-    addEnemyScore: (wonCards: ScoreCardTuple[]) =>
-      set((state) => ({
-        enemyScoreCards: state.enemyScoreCards.concat(wonCards),
-      })),
-    clearEnemyScoreCards: () => set({ enemyScoreCards: [] }),
-    addOwnScore: (wonCards: ScoreCardTuple[]) =>
-      set((state) => ({
-        ownScoreCards: state.ownScoreCards.concat(wonCards),
-      })),
-    clearOwnScoreCards: () => set({ ownScoreCards: [] }),
     addOwnCards: (receive: Card[]) =>
       set((state) => ({
         ownCards: state.ownCards.concat(receive),
@@ -100,10 +80,9 @@ export const useGamestate = create(
       })),
     checkWinner: () =>
       set((state) => {
-        let enemyScore: ScoreCardTuple[] = state.enemyScoreCards;
-        let ownScore: ScoreCardTuple[] = state.ownScoreCards;
-
-        const wonCards: ScoreCardTuple[] = getWonCards(state);
+        let enemyScore = state.enemyScoreCards;
+        let ownScore = state.ownScoreCards;
+        const wonCards = getWonCards(state);
 
         if (state.wonTurn == state.playerId) {
           ownScore = ownScore.concat(wonCards);

@@ -15,7 +15,8 @@ export interface Message {
   Config?: Config;
 }
 
-type Config = {}; // Later when new features are added, this will be updated
+// Later when new features are added, this will be updated
+type Config = {};
 
 export enum MessageType {
   RoomClosed,

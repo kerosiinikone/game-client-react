@@ -8,9 +8,9 @@ export const useHandleCommand = () => {
 
   const handleCommand = useCallback(
     (message: MessageEvent<any>) => {
-      let ownCard: Card | undefined;
-      let enemyCard: Card | undefined;
-      let data: Message = {};
+      let ownCard,
+        enemyCard: Card | null = null;
+      let data: Message;
 
       try {
         data = JSON.parse(message.data) as Message;
@@ -42,11 +42,10 @@ export const useHandleCommand = () => {
           console.error("Invalid message received", data);
           break;
       }
-
-      if (data.War && !state.isWar) {
+      if (data.War && !state.isWar && ownCard && enemyCard) {
         state.setIsWar(true);
-        state.setEnemyCard(enemyCard!);
-        state.setOwnCard(ownCard!);
+        state.setEnemyCard(enemyCard);
+        state.setOwnCard(ownCard);
       }
     },
     [state]
@@ -61,23 +60,13 @@ export const useHandleCommand = () => {
 
   const handlePlayer1Turn = useCallback(
     (data: Message) => {
-      let ownCard: Card | undefined;
-      let enemyCard: Card | undefined;
+      let ownCard,
+        enemyCard: Card | null = null;
 
       if (state.playerId === 1) state.setIsCurrentTurn(true);
-      if (data.Card && data.Card.Suit != "") {
-        let receiveCards: Card[] = [];
-        if (state.isWar) {
-          receiveCards = [
-            {
-              Suit: "",
-              Value: "",
-            },
-            data.Card,
-          ];
-        } else {
-          receiveCards = [data.Card];
-        }
+      if (data.Card?.Suit && data.Card?.Value) {
+        const receiveCards = getReceivedCards(state, data);
+
         if (state.playerId === 2) {
           enemyCard = state.enemyCards[state.enemyCards.length - 1];
           ownCard = data.Card;
@@ -100,23 +89,13 @@ export const useHandleCommand = () => {
 
   const handlePlayer2Turn = useCallback(
     (data: Message) => {
-      let ownCard: Card | undefined;
-      let enemyCard: Card | undefined;
+      let ownCard,
+        enemyCard: Card | null = null;
 
       if (state.playerId === 2) state.setIsCurrentTurn(true);
-      if (data.Card && data.Card.Suit != "") {
-        let receiveCards: Card[] = [];
-        if (state.isWar) {
-          receiveCards = [
-            {
-              Suit: "",
-              Value: "",
-            },
-            data.Card,
-          ];
-        } else {
-          receiveCards = [data.Card];
-        }
+      if (data.Card?.Suit && data.Card?.Value) {
+        const receiveCards = getReceivedCards(state, data);
+
         if (state.playerId === 2) {
           enemyCard = data.Card;
           ownCard = state.ownCards[state.ownCards.length - 1];
@@ -134,3 +113,22 @@ export const useHandleCommand = () => {
 
   return { handleCommand };
 };
+
+function getReceivedCards(state: GameState, data: Message) {
+  let receiveCards: Card[] = [];
+  if (!data.Card?.Suit || !data.Card?.Value) {
+    return receiveCards;
+  }
+  if (state.isWar) {
+    receiveCards = [
+      {
+        Suit: "",
+        Value: "",
+      },
+      data.Card,
+    ];
+  } else {
+    receiveCards = [data.Card];
+  }
+  return receiveCards;
+}
