@@ -28,6 +28,14 @@ type GameStateModifiers = {
 
   checkWinner: () => void;
   reset: () => void;
+  getLastOwnSuite: () => string;
+  getLastEnemySuite: () => string;
+  getFirstEnemySuite: () => string;
+  getFirstOwnSuite: () => string;
+  getLastOwnValue: () => string;
+  getLastEnemyValue: () => string;
+  getFirstOwnValue: () => string;
+  getFirstEnemyValue: () => string;
 };
 
 export type GameState = GameStateVars & GameStateModifiers;
@@ -45,7 +53,7 @@ const initialState = (): GameStateVars => ({
 });
 
 export const useGamestate = create(
-  combine<GameStateVars, GameStateModifiers>(initialState(), (set) => ({
+  combine<GameStateVars, GameStateModifiers>(initialState(), (set, get) => ({
     isCurrentTurn: false,
     playerId: 0,
     isWar: false,
@@ -80,6 +88,7 @@ export const useGamestate = create(
         isWar: false,
         isCurrentTurn: false,
       })),
+
     checkWinner: () =>
       set((state) => {
         let enemyScore = state.enemyScoreCards;
@@ -103,6 +112,17 @@ export const useGamestate = create(
     reset: () => {
       set(initialState);
     },
+    getLastOwnSuite: () =>
+      get().ownCards[get().ownCards.length - 1].Suit.toLowerCase(),
+    getLastEnemySuite: () =>
+      get().enemyCards[get().enemyCards.length - 1].Suit.toLowerCase(),
+    getFirstEnemySuite: () => get().enemyCards[0].Suit.toLowerCase(),
+    getFirstOwnSuite: () => get().ownCards[0].Suit.toLowerCase(),
+    getLastOwnValue: () => get().ownCards[get().ownCards.length - 1].Value,
+    getLastEnemyValue: () =>
+      get().enemyCards[get().enemyCards.length - 1].Value,
+    getFirstOwnValue: () => get().ownCards[0].Value,
+    getFirstEnemyValue: () => get().enemyCards[0].Value,
   }))
 );
 
