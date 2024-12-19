@@ -36,15 +36,15 @@ export const useHandleCommand = () => {
         case MessageType.GameOver:
           state.reset();
           alert("Game over");
-          break;
+          return;
         default:
           console.error("Invalid message received", data);
-          break;
+          return;
       }
-      if (data.War && !state.isWar && ownCard && enemyCard) {
+      if (data.War && !state.isWar) {
         state.setIsWar(true);
-        state.setEnemyCard(enemyCard);
-        state.setOwnCard(ownCard);
+        state.setEnemyCard(enemyCard!);
+        state.setOwnCard(ownCard!);
       }
     },
     [state]
@@ -75,11 +75,8 @@ export const useHandleCommand = () => {
           ownCard = state.ownCards[state.ownCards.length - 1];
           state.addEnemyCards(receiveCards);
         }
-        if (data.Won) {
-          state.setTurnWinner(state.playerId);
-        } else if (!data.Won && !data.War) {
-          state.setTurnWinner(state.player2Id);
-        }
+
+        handleWinner(data, state);
       }
       return [ownCard, enemyCard] as const;
     },
@@ -130,4 +127,17 @@ function getReceivedCards(state: GameState, data: Message) {
     receiveCards = [data.Card];
   }
   return receiveCards;
+}
+
+function handleWinner(data: Message, state: GameState) {
+  switch (data.Won) {
+    case true:
+      state.setTurnWinner(state.playerId);
+      break;
+    case false:
+      if (!data.War) {
+        state.setTurnWinner(state.player2Id);
+      }
+      break;
+  }
 }

@@ -13,7 +13,7 @@ const Deck = ({
 }: DeckProps) => {
   return (
     <group position={pos} rotation={rotation}>
-      <TopCard endPos={[0, -2, -3]} color={color} animate={false} />
+      <TopCard endPos={[0, -2, -3]} color={color} animate="none" />
       <mesh position={[0, -2.25, -3]}>
         <meshBasicMaterial color="white" />
         <boxGeometry args={[2, 0.5, 3]} />

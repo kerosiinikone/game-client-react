@@ -26,7 +26,11 @@ const Card = ({ suit, value, pos, inv }: CardProps) => {
   }) as any;
 
   const startPoint = new Vector3(...DEFAULT_DECK_POSITION);
-  const controlPoint = new Vector3(0, 0, 0);
+  const controlPoint = new Vector3(
+    DEFAULT_DECK_POSITION.x,
+    DEFAULT_DECK_POSITION.y + 1,
+    DEFAULT_DECK_POSITION.z
+  );
   const endPoint = new Vector3(...DEFAULT_TABLE_POSITION);
 
   const curve = new QuadraticBezierCurve3(startPoint, controlPoint, endPoint);

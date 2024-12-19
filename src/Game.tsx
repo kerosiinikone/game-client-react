@@ -150,16 +150,18 @@ function Game() {
         {ownScoreCards.map((tuple) => (
           <TopCard
             endPos={[3, -2.5, 1]}
+            startPos={[3, -2.5, -3]}
             r={[0, tuple[1], 0]}
-            animate={false}
+            animate="win"
             color="red"
           />
         ))}
         {enemyScoreCards.map((tuple) => (
           <TopCard
             endPos={[3, -2.5, -11]}
+            startPos={[3, -2.5, -7]}
             r={[0, tuple[1], 0]}
-            animate={false}
+            animate="win"
             color="blue"
           />
         ))}
