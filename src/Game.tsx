@@ -1,17 +1,16 @@
 import { Canvas } from "@react-three/fiber";
-import { useCallback, useEffect, useMemo } from "react";
+import { useEffect } from "react";
 import { Vector3 } from "three";
+import { useHandleCommand } from "./hooks/useHandleCommand";
+import { useGameWebSocket } from "./hooks/useWebsocket";
 import PCard from "./interface/Card";
 import Deck from "./interface/Deck";
 import TopCard from "./interface/TopCard";
-import { useHandleCommand } from "./hooks/useHandleCommand";
-import { useGameWebSocket } from "./hooks/useWebsocket";
 import { useGamestate } from "./state/game";
 import type { Message } from "./types";
 
 function Game() {
   const game = useGamestate((state) => state);
-
   const { handleSendMessage, lastMessage: message } = useGameWebSocket();
   const { handleCommand } = useHandleCommand();
 

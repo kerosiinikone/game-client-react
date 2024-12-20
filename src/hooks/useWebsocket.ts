@@ -2,10 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import useWebSocket from "react-use-websocket";
 import { WebSocketMessage } from "react-use-websocket/dist/lib/types";
 
-const SOCKET_URL = "ws://localhost:3000";
-
 export const useGameWebSocket = () => {
-  const [socket, __] = useState<string>(SOCKET_URL);
+  const [socket, __] = useState<string>(import.meta.env.VITE_SERVER_SOCKET);
   const [_, setMessageHistory] = useState<MessageEvent<any>[]>([]);
   const { lastMessage, sendMessage } = useWebSocket(socket, {
     shouldReconnect: () => true,
